@@ -36,12 +36,16 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+<<<<<<< HEAD
     'users.apps.UsersConfig',
     'data.apps.DataConfig', 
     'audit.apps.AuditConfig', 
     'rest_framework',
     'corsheaders',
     'ged',
+=======
+    'data.apps.DataConfig'
+>>>>>>> data
 ]
 
 

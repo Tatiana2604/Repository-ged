@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # from rest_framework import viewSets
 from rest_framework.response import Response
 from rest_framework import status
@@ -958,3 +959,8 @@ class DocumentView(APIView):
 
 
 
+=======
+from django.shortcuts import render
+
+# Create your views here.
+>>>>>>> data
