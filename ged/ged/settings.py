@@ -29,7 +29,6 @@ ALLOWED_HOSTS = []
 
 
 # Application definition
-
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -37,10 +36,17 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'data.apps.DataConfig'
+    'users.apps.UsersConfig',
+    'data.apps.DataConfig', 
+    'audit.apps.AuditConfig', 
+    'rest_framework',
+    'corsheaders',
+    'ged',
 ]
 
+
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -48,7 +54,43 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'audit.middleware.CurrentUserMiddleware',
 ]
+
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+
+]
+
+CORS_ALLOW_CREDENTIALS = True
+# CORS_ALLOW_ALL_ORIGINS = True
+
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000",
+]
+
+CSRF_COOKIE_HTTPONLY = False
+CSRF_COOKIE_SAMESITE = "Lax"
+CRSF_COOKIE_SECURE = False
+
+
+SESSION_ENGINE = "django.contrib.sessions.backends.db"
+SESSION_COOKIE_NAME = "sessionid"
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_SECURE = False
+SESSION_COOKIE_AGE = 60 * 60 * 24 *  14
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTIFICATION_CLASSES": [
+        "rest_framework.authentication.SessionAuthentication",
+        "rest_framework.authentication.BasicAuthentication",
+    ]
+}
+
 
 ROOT_URLCONF = 'ged.urls'
 
@@ -80,14 +122,17 @@ WSGI_APPLICATION = 'ged.wsgi.application'
 #     }
 # }
 
+
+
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'ged',
         'USER': 'postgres',
         'PASSWORD': 'bagl21',
-        'HOST': 'localhost',  # ou l'adresse IP si serveur externe
-        'PORT': '5432',       # port par défaut de PostgreSQL
+        'HOST': 'localhost',  
+        'PORT': '5432',       
     }
 }
 
@@ -110,6 +155,8 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+
+AUTH_USER_MODEL = "users.Authentification"
 
 
 # Internationalization
