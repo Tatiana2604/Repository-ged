@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # from django.db import models
 from django.db import models
 from users.models import Poste_comptable
@@ -35,7 +34,9 @@ class Document(models.Model):
 class Archivage(models.Model):
     document = models.OneToOneField(Document, on_delete=models.CASCADE, related_name='archives')
 
-
+class PieceComptable(models.Model):
+    nom = models.CharField(max_length=20)
+    periode = models.CharField(max_length=30)
 
 
 
@@ -51,13 +52,3 @@ class Archivage(models.Model):
 
 
 
-
-       
-=======
-from django.db import models
-
-# Create your models here.
-class PieceComptable(models.Model):
-    nom = models.CharField(max_length=20)
-    periode = models.CharField(max_length=30)
->>>>>>> data
