@@ -1,4 +1,3 @@
-# from django.db import models
 from django.db import models
 from users.models import Poste_comptable
 
@@ -26,7 +25,6 @@ class Document(models.Model):
     poste_comptable = models.ForeignKey(Poste_comptable,on_delete=models.CASCADE,related_name="documents", null = True)
     version = models.IntegerField(default=1)
 
-
     def _str_(self):
         return self.nom_fichier
 
@@ -34,21 +32,6 @@ class Document(models.Model):
 class Archivage(models.Model):
     document = models.OneToOneField(Document, on_delete=models.CASCADE, related_name='archives')
 
-class PieceComptable(models.Model):
-    nom = models.CharField(max_length=20)
-    periode = models.CharField(max_length=30)
 
-
-
-
-# class Utilisateur(models.Model):
-#     im = models.CharField(max_length=15)
-#     nom = models.CharField(max_length=50)
-#     prenom = models.CharField(max_length=80)
-#     email = models.EmailField(unique=True)
-#     fonction = models.CharField(max_length=20)
-#     def _str_(self):
-#         return f"{self.nom} {self.prenom}"
-
-
-
+class Exercice(models.Model):
+    annee = models.CharField(max_length=5, unique=True)

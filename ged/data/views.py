@@ -1,325 +1,107 @@
 # from rest_framework import viewSets
-from django.shortcuts import render
 from rest_framework.response import Response
 from rest_framework import status
-from .models import Document
-from.serializers import DocumentSerializer
-from rest_framework.views import APIView
-from .models import Piece, Archivage
 from users.models import Poste_comptable
 from django.http import JsonResponse, HttpResponse
-from django.core import serializers
 from django.db.models import Q
-from datetime import datetime, date
+from django.core.mail import EmailMessage
 from calendar import monthrange 
 import os.path
 import shutil
-import json
-
-
-# class DocumentCreateViewSet(viewSets.ModelViewSet):
-#     def post(self,request):
-#         serializer = DocumentSerializer(data=request.data)
-#         if serializer.issubclass_valid():
-#             serializer.save()
-#             return Response({"message":"Document ajouté avec succès !"},status=status.HTTP_201_CREATED)
-#         return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
-
-
-
-
-# ===== ARCHIVAGE =====
-
-# class PiecesStatusView(APIView):
-#     """
-#     Retourne le statut des pièces pour un poste comptable donné,
-#     avec possibilité de filtrer par mois, exercice et pièce spécifique,
-#     en tenant compte de la période (mensuelle, décadaire) et du retard.
-#     """
-
-#     def post(self, request):
-#         data = request.data
-#         poste_id = data.get("poste_id")
-#         mois = data.get("mois")
-#         exercice = data.get("exercice")
-#         piece_id = data.get("piece_id")  # optionnel
-
-#         if not poste_id:
-#             return JsonResponse({"error": "poste_id requis"}, status=400)
-
-#         # Vérifie que le poste existe
-#         try:
-#             poste = Poste_comptable.objects.get(id=poste_id)
-#         except Poste_comptable.DoesNotExist:
-#             return JsonResponse({"error": "Poste comptable introuvable"}, status=404)
-
-#         # Récupère toutes les pièces liées à ce poste
-#         pieces_qs = poste.piece_comptables.all()
-#         if piece_id:
-#             pieces_qs = pieces_qs.filter(id=piece_id)
-
-#         resultats = []
-#         today = date.today()
-
-#         for piece in pieces_qs:
-#             # Filtrer documents du poste/piece/mois/exercice
-#             filtres = Q(piece=piece, poste_comptable=poste)
-#             if mois:
-#                 filtres &= Q(mois=mois)
-#             if exercice:
-#                 filtres &= Q(exercice=exercice)
-
-#             documents = Document.objects.filter(filtres).order_by('date_arrivee')
-
-#             periode = piece.periode.lower() if piece.periode else "mensuelle"
-#             piece_status = []
-#             late_status = []
-#             docs_by_period = []
-
-#             if (periode == "décadaire" or periode == "decadaire") and mois and exercice:
-#                 mois_int = int(mois)
-#                 exercice_int = int(exercice)
-#                 last_day = monthrange(exercice_int, mois_int)[1]
-
-#                 # Décades : 1–10, 11–20, 21–fin du mois
-#                 decades = [(1, 10), (11, 20), (21, last_day)]
-#                 for start, end in decades:
-#                     # Filtrer uniquement les documents avec date_arrivee définie
-#                     docs_in_decade = [
-#                         {"id": doc.id, "nom_fichier": doc.nom_fichier,
-#                          "date_arrivee": doc.date_arrivee.strftime("%Y-%m-%d")}
-#                         for doc in documents if doc.date_arrivee and start <= doc.date_arrivee.day <= end
-#                     ]
-#                     # Arrivée
-#                     piece_status.append(bool(docs_in_decade))
-#                     # Documents
-#                     docs_by_period.append(docs_in_decade)
-#                     # Retard : décade terminée et aucun document
-#                     dec_end_date = date(exercice_int, mois_int, end)
-#                     late_status.append(not docs_in_decade and today > dec_end_date)
-
-#             else:
-#                 # Mensuelle ou autre période
-#                 piece_status = [documents.exists()]
-#                 docs_by_period = [[
-#                     {"id": doc.id, "nom_fichier": doc.nom_fichier,
-#                      "date_arrivee": doc.date_arrivee.strftime("%Y-%m-%d")}
-#                     for doc in documents if doc.date_arrivee
-#                 ]]
-#                 if mois and exercice:
-#                     mois_int = int(mois)
-#                     exercice_int = int(exercice)
-#                     last_day = monthrange(exercice_int, mois_int)[1]
-#                     dec_end_date = date(exercice_int, mois_int, last_day)
-#                     late_status = [not documents.exists() and today > dec_end_date]
-#                 else:
-#                     late_status = [False]
-
-#             resultats.append({
-#                 "id": piece.id,
-#                 "nom_piece": piece.nom_piece,
-#                 "periode": piece.periode,
-#                 "arrived": piece_status,
-#                 "late": late_status,
-#                 "documents": docs_by_period
-#             })
-
-#         return JsonResponse(resultats, safe=False, status=200)
-
-
-# class PiecesStatusView(APIView):
-#     """
-#     Retourne le statut des pièces pour un poste comptable donné,
-#     avec possibilité de filtrer par mois, exercice et pièce spécifique,
-#     en tenant compte de la période (mensuelle, décadaire) et du retard.
-#     """
-
-#     def post(self, request):
-#         data = request.data
-#         poste_id = data.get("poste_id")
-#         mois = data.get("mois")
-#         exercice = data.get("exercice")
-#         piece_id = data.get("piece_id")  # optionnel
-
-#         if not poste_id:
-#             return JsonResponse({"error": "poste_id requis"}, status=400)
-
-#         try:
-#             poste = Poste_comptable.objects.get(id=poste_id)
-#         except Poste_comptable.DoesNotExist:
-#             return JsonResponse({"error": "Poste comptable introuvable"}, status=404)
-
-#         pieces_qs = poste.piece_comptables.all()
-#         if piece_id:
-#             pieces_qs = pieces_qs.filter(id=piece_id)
-
-#         resultats = []
-#         today = date.today()
-
-#         for piece in pieces_qs:
-#             filtres = Q(piece=piece, poste_comptable=poste)
-#             if mois:
-#                 filtres &= Q(mois=mois)
-#             if exercice:
-#                 filtres &= Q(exercice=exercice)
-
-#             documents = Document.objects.filter(filtres).order_by('date_arrivee')
-#             periode = piece.periode.lower() if piece.periode else "mensuelle"
-
-#             piece_status = []
-#             late_status = []
-#             docs_by_period = []
-
-#             if periode == "decadaire" and mois and exercice:
-#                 mois_int = int(mois)
-#                 exercice_int = int(exercice)
-#                 last_day = monthrange(exercice_int, mois_int)[1]
-
-#                 # Décades
-#                 decades = [(1, 10), (11, 20), (21, last_day)]
-
-#                 for idx, (start, end) in enumerate(decades):
-#                     dec_end_date = date(exercice_int, mois_int, end)
-
-#                     # Filtrer documents correspondant à cette décade via split(", ")
-#                     docs_in_decade = []
-#                     for doc in documents:
-#                         parts = doc.nom_fichier.split(", ")
-#                         if len(parts) > 1 and parts[1].strip().lower() == f"decade {idx + 1}":
-#                             docs_in_decade.append({
-#                                 "id": doc.id,
-#                                 "nom_fichier": doc.nom_fichier,
-#                                 "date_arrivee": doc.date_arrivee.strftime("%Y-%m-%d") if doc.date_arrivee else None
-#                             })
-
-#                     piece_status.append(bool(docs_in_decade))
-#                     docs_by_period.append(docs_in_decade)
-
-#                     # Calcul du retard
-#                     if docs_in_decade:
-#                         # True si au moins un document est arrivé après la fin de la décade
-#                         late_status.append(any(
-#                             doc['date_arrivee'] and date.fromisoformat(doc['date_arrivee']) > dec_end_date
-#                             for doc in docs_in_decade
-#                         ))
-#                     else:
-#                         # True si aucun document et décade dépassée
-#                         late_status.append(today > dec_end_date)
-
-#             else:
-#                 # Mensuelle ou autre
-#                 docs_list = [
-#                     {
-#                         "id": doc.id,
-#                         "nom_fichier": doc.nom_fichier,
-#                         "date_arrivee": doc.date_arrivee.strftime("%Y-%m-%d") if doc.date_arrivee else None
-#                     }
-#                     for doc in documents
-#                 ]
-#                 piece_status = [bool(docs_list)]
-#                 docs_by_period = [docs_list]
-
-#                 if mois and exercice:
-#                     mois_int = int(mois)
-#                     exercice_int = int(exercice)
-#                     last_day = monthrange(exercice_int, mois_int)[1]
-#                     dec_end_date = date(exercice_int, mois_int, last_day)
-#                     late_status = [not docs_list and today > dec_end_date]
-#                 else:
-#                     late_status = [False]
-
-#             resultats.append({
-#                 "id": piece.id,
-#                 "nom_piece": piece.nom_piece,
-#                 "periode": piece.periode,
-#                 "arrived": piece_status,
-#                 "late": late_status,
-#                 "documents": docs_by_period
-#             })
-
-#         return JsonResponse(resultats, safe=False, status=200)
 from datetime import date, datetime
-from calendar import monthrange
-from django.http import JsonResponse
-from django.db.models import Q
 from rest_framework.views import APIView
-from .models import Poste_comptable, Document
-from django.shortcuts import render, get_object_or_404
+from .models import Poste_comptable, Document, Piece, Archivage, Exercice
+import os
+import io
+import zipfile
 import hashlib
+from fpdf import FPDF
 
 
+
+# Hash du fichier local
 def hash_local_file(file):
     hash_func = hashlib.sha256()
     for chunk in file.chunks():
         hash_func.update(chunk)
     return hash_func.hexdigest()
 
+# Hash d'un contenu binaire
 def hash_binary(binary):
     return hashlib.sha256(binary).hexdigest()
 
 
+# Génération du PDF en mémoire et retour en bytes
+def generate_diff_pdf_bytes(local_file_name, local_content, doc_name, doc_content_bytes):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", "B", 16)
+    pdf.cell(0, 10, "Rapport de Vérification de Fichiers", ln=True, align="C")
+    pdf.ln(10)
+    pdf.set_font("Arial", "", 12)
+    # Fichier local
+    local_size_mb = len(local_content) / (1024 * 1024)
+    pdf.cell(0, 10, f"Fichier local : {local_file_name}", ln=True)
+    pdf.cell(0, 10, f"Format : {local_file_name.split('.')[-1].upper() or 'Inconnu'}", ln=True)
+    pdf.cell(0, 10, f"Taille : {local_size_mb:.4f} Mo", ln=True)
+    pdf.cell(0, 10, f"Hash SHA-256 : {hashlib.sha256(local_content).hexdigest()}", ln=True)
+    
+    pdf.ln(5)
+    # Fichier en base
+    doc_size_mb = len(doc_content_bytes) / (1024 * 1024)
+    pdf.cell(0, 10, f"Fichier en base : {doc_name}", ln=True)
+    pdf.cell(0, 10, f"Format : {doc_name.split('.')[-1].upper() or 'Inconnu'}", ln=True)
+    pdf.cell(0, 10, f"Taille : {doc_size_mb:.4f} Mo", ln=True)
+    pdf.cell(0, 10, f"Hash SHA-256 : {hashlib.sha256(doc_content_bytes).hexdigest()}", ln=True)
+    
+    pdf.ln(10)
+    pdf.set_font("Arial", "B", 12)
+    pdf.multi_cell(0, 10, "Conclusion : Les fichiers sont différents.")
+    
+    return pdf.output(dest='S').encode('latin1')
+
+
 class VerificationView(APIView):
-
     def post(self, request):
-        # Vérifier si le fichier est présent
         if "local_file" not in request.FILES:
-            return Response(
-                {"error": "Aucun fichier reçu."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # 1. Récupérer fichier local
+            return Response({"error": "Aucun fichier reçu."}, status=status.HTTP_400_BAD_REQUEST)
         local_file = request.FILES["local_file"]
         local_hash = hash_local_file(local_file)
-
-        # 2. Vérifier si l'id du document sélectionné est présent
+        local_file.seek(0)
+        local_content = local_file.read()
+        # Vérifier id_doc
         id_doc = request.POST.get("id_doc")
         if not id_doc:
-            return Response(
-                {"error": "Aucun id_doc envoyé."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # 3. Récupérer le document en base correspondant
+            return Response({"error": "Aucun id_doc envoyé."}, status=status.HTTP_400_BAD_REQUEST)
+        # Récupérer le document en base
         try:
             document = Document.objects.get(id=id_doc)
         except Document.DoesNotExist:
-            return Response(
-                {"error": "Document introuvable."},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        # 4. Comparaison
+            return Response({"error": "Document introuvable."}, status=status.HTTP_404_NOT_FOUND)
         if not document.contenu:
-            return Response({
-                "identique": False,
-                "message": "Le document sélectionné n'a pas de contenu enregistré."
-            })
-
-        doc_hash = hash_binary(document.contenu)
-
-        # 5. Résultat comparaison
+            return Response({"identique": False, "message": "Le document sélectionné n'a pas de contenu enregistré."})
+        # BinaryField → bytes
+        doc_content_bytes = document.contenu.tobytes()
+        doc_hash = hash_binary(doc_content_bytes)
+        # Si identiques
         if doc_hash == local_hash:
             return Response({
                 "identique": True,
                 "document": document.nom_fichier,
                 "message": "Le document local est IDENTIQUE au document sélectionné."
             })
-
+        # Sinon générer PDF en mémoire
+        pdf_bytes = generate_diff_pdf_bytes(local_file.name, local_content, document.nom_fichier, doc_content_bytes)
+        pdf_base64 = pdf_bytes.hex()  # Encode en hex pour l’envoyer dans JSON
         return Response({
             "identique": False,
             "document": document.nom_fichier,
-            "message": "Les deux documents sont différents."
+            "message": "Les fichiers sont différents.",
+            "pdf_bytes_hex": pdf_base64  # React pourra décoder et déclencher le téléchargement
         })
 
 
 class PiecesStatusView(APIView):
-    """
-    Retourne le statut des pièces pour un poste comptable donné,
-    avec possibilité de filtrer par mois, exercice, pièce spécifique et période
-    (mensuelle, décadaire, journalière), en tenant compte du retard.
-    """
-
     def post(self, request): 
         data = request.data
         nom_poste = data.get("poste_comptable")
@@ -327,65 +109,46 @@ class PiecesStatusView(APIView):
         exercice = data.get("exercice")
         piece_id = data.get("piece_id")      
         periode_filtre = data.get("periode")
-
         if not nom_poste:
             return JsonResponse({"error": "poste_id requis"}, status=400)
-
         try:
             poste = Poste_comptable.objects.get(nom_poste=nom_poste)
         except Poste_comptable.DoesNotExist:
             return JsonResponse({"error": "Poste comptable introuvable"}, status=404)
-
         pieces_qs = poste.piece_comptables.all()
-
         if piece_id:
             pieces_qs = pieces_qs.filter(id=piece_id)
         if periode_filtre:
             pieces_qs = pieces_qs.filter(periode__iexact=periode_filtre)
-
         resultats = []
         today = date.today()
-
         for piece in pieces_qs:
             filtres = Q(piece=piece, poste_comptable=poste)
             if mois:
                 filtres &= Q(mois=mois)
             if exercice:
                 filtres &= Q(exercice=exercice)
-
-            # ---------------------------
-            # 🔥 SYSTÈME DE VERSIONING GLOBAL
-            # Conserve uniquement la dernière version par document logique
-            # ---------------------------
+            # Conserve la dernière version par document logique
             documents_qs = Document.objects.filter(filtres).select_related("piece", "poste_comptable")
-
             latest_docs_dict = {}
             for doc in documents_qs:
                 parts = doc.nom_fichier.split(", ")
                 info_supp = parts[1] if len(parts) > 1 else ""
-
                 key = (doc.piece.id, doc.exercice, doc.mois, info_supp)
-
                 if key not in latest_docs_dict or doc.version > latest_docs_dict[key].version:
                     latest_docs_dict[key] = doc
 
             documents = list(latest_docs_dict.values())
-
             periode = piece.periode.lower() if piece.periode else "mensuelle"
 
-            # -----------------------
-            # 1️⃣ Gestion DÉCADAIRE
-            # -----------------------
+            # Période Décadaire
             if periode == "décadaire" and mois and exercice:
                 mois_int = int(mois)
                 exercice_int = int(exercice)
                 last_day = monthrange(exercice_int, mois_int)[1]
-
                 decades = [(1, 10), (11, 20), (21, last_day)]
-
                 for idx, (start, end) in enumerate(decades):
                     dec_end_date = date(exercice_int, mois_int, end)
-
                     docs_in_decade = []
                     for doc in documents:
                         parts = doc.nom_fichier.split(", ")
@@ -397,7 +160,6 @@ class PiecesStatusView(APIView):
                                     "nom_fichier": doc.nom_fichier,
                                     "date_arrivee": doc.date_arrivee.strftime("%Y-%m-%d") if doc.date_arrivee else None
                                 })
-
                     arrived = bool(docs_in_decade)
                     if arrived:
                         late = any(
@@ -406,7 +168,6 @@ class PiecesStatusView(APIView):
                         )
                     else:
                         late = today > dec_end_date
-
                     resultats.append({
                         "id": piece.id,
                         "nom_piece": f"{piece.nom_piece} - Décade {idx + 1}",
@@ -419,25 +180,18 @@ class PiecesStatusView(APIView):
                         "documents": [docs_in_decade]
                     })
 
-            # -----------------------
-            # 2️⃣ Gestion JOURNALIÈRE
-            # -----------------------
+            # Période Journalière
             elif periode == "journalière" and mois and exercice:
-
                 mois_int = int(mois)
                 exercice_int = int(exercice)
                 nb_jours = monthrange(exercice_int, mois_int)[1]
-
                 # Filtrage des docs journaliers (dernière version déjà appliquée)
                 docs_sje = documents
-
                 for jour in range(1, nb_jours + 1):
                     date_jour = date(exercice_int, mois_int, jour)
                     date_str = date_jour.strftime("%Y-%m-%d")
-
                     arrived = False
                     documents_for_day = []
-
                     for doc in docs_sje:
                         parts = [p.strip() for p in doc.nom_fichier.split(",") if p.strip()]
                         if len(parts) > 1 and parts[1] == date_str:
@@ -454,7 +208,6 @@ class PiecesStatusView(APIView):
                                 "date_arrivee": doc.date_arrivee.strftime("%Y-%m-%d") if doc.date_arrivee else None,
                                 "retard": retard
                             })
-
                     resultats.append({
                         "id": piece.id,
                         "nom_piece": f"{piece.nom_piece} ({date_str})",
@@ -465,11 +218,8 @@ class PiecesStatusView(APIView):
                         "documents": [documents_for_day]
                     })
 
-            # -----------------------
-            # 3️⃣ Gestion MENSUELLE
-            # -----------------------
+            # Période Mensuelle
             else:
-
                 docs_list = [
                     {
                         "id": doc.id,
@@ -478,21 +228,16 @@ class PiecesStatusView(APIView):
                     }
                     for doc in documents
                 ]
-
                 piece_status = [bool(docs_list)]
                 docs_by_period = [docs_list]
-
                 if mois and exercice:
                     mois_int = int(mois)
                     exercice_int = int(exercice)
-
                     if mois_int == 12:
                         mois_suiv, annee_suiv = 1, exercice_int + 1
                     else:
                         mois_suiv, annee_suiv = mois_int + 1, exercice_int
-
                     date_limite = date(annee_suiv, mois_suiv, 15)
-
                     late_status = [
                         (not docs_list and today > date_limite) or
                         any(
@@ -503,7 +248,6 @@ class PiecesStatusView(APIView):
                     ]
                 else:
                     late_status = [False]
-
                 resultats.append({
                     "id": piece.id,
                     "nom_piece": piece.nom_piece,
@@ -512,9 +256,7 @@ class PiecesStatusView(APIView):
                     "late": late_status,
                     "documents": docs_by_period
                 })
-
         return JsonResponse(resultats, safe=False, status=200)
-
 
 
 class ArchiveView(APIView):
@@ -668,26 +410,28 @@ class DocumentView(APIView):
         #     document.save()
         #     return JsonResponse({'succes': 'Document enregistré avec succès'})
 
-        # elif request.data.get('action') == 'listes_documents_auditeur':
-        #     document = Document.objects.select_related('piece', 'poste_comptable').filter(poste_comptable__utilisateur_id=request.data.get('utilisateur'), archives__isnull=True).values(
-        #         'id',
-        #         'nom_fichier',
-        #         'poste_comptable__nom_poste', 
-        #         'piece__nom_piece',
-        #         'date_arrivee',
-        #         'exercice',
-        #         'mois',
-        #         'created_at',
-        #         'type')
-        #     return JsonResponse(list(document), safe=False)
+        if request.data.get('action') == 'listes_documents_auditeur':
+            document = Document.objects.select_related('piece', 'poste_comptable').filter(poste_comptable__utilisateur_id=request.data.get('utilisateur'), archives__isnull=True).values(
+                'id',
+                'nom_fichier',
+                'poste_comptable__nom_poste', 
+                'piece__nom_piece',
+                'date_arrivee',
+                'exercice',
+                'mois',
+                'created_at',
+                'type',
+                'version'
+            )
+            return JsonResponse(list(document), safe=False)
 
-        # elif request.data.get('action') == 'listes_documents_chef_unite':
-        #     document = Document.objects.all().select_related('poste_comptable', 'piece').filter(poste_comptable__utilisateur__zone__nom_zone=request.data.get('zone'), archives__isnull=True).values('id', 'piece__nom_piece','poste_comptable__nom_poste', 'nom_fichier', 'exercice', 'mois', 'date_arrivee')
-        #     return JsonResponse(list(document), safe=False)
+        elif request.data.get('action') == 'listes_documents_chef_unite':
+            document = Document.objects.all().select_related('poste_comptable', 'piece').filter(poste_comptable__utilisateur__zone__nom_zone=request.data.get('zone'), archives__isnull=True).values('id', 'piece__nom_piece','poste_comptable__nom_poste', 'nom_fichier', 'exercice', 'mois', 'date_arrivee')
+            return JsonResponse(list(document), safe=False)
 
-        # elif request.data.get('action') == 'listes_documents_directeur':
-        #     document = Document.objects.filter(archives__isnull=True).values('id', 'piece__nom_piece', 'poste_comptable__nom_poste', 'nom_fichier', 'exercice', 'mois', 'date_arrivee', 'created_at')
-        #     return JsonResponse(list(document), safe=False)
+        elif request.data.get('action') == 'listes_documents_directeur':
+            document = Document.objects.filter(archives__isnull=True).values('id', 'piece__nom_piece', 'poste_comptable__nom_poste', 'nom_fichier', 'exercice', 'mois', 'date_arrivee', 'created_at')
+            return JsonResponse(list(document), safe=False)
 
         if request.data.get("action") == 'ajouter':
 
@@ -715,12 +459,12 @@ class DocumentView(APIView):
             ]
 
             if documents_meme_info:
-                #recupérer la version max
+                #recupérer la version maximaleS
                 version = max(doc.version for doc in documents_meme_info)+1
             else:
                 version = 1
 
-            #Créer le nouveau document avec la version correcte
+            #Créer le dpcument
             document = Document(
                 nom_fichier=f"{request.data.get('nom_fichier')}, {info_supp_nouveau}",
                 type=request.data.get("type_fichier"),
@@ -733,150 +477,147 @@ class DocumentView(APIView):
                 version=version
             )
             document.save()
-            # return JsonResponse({"id_fichier": document.id,"version":document.version})
+           
             return JsonResponse({'succes': 'Document enregistré avec succès'})
 
-        elif request.data.get('action') == 'listes_documents_auditeur':
+        # elif request.data.get('action') == 'listes_documents_auditeur':
 
-            # Récupérer tous les documents de l'utilisateur (même archivés)
-            document_qs = Document.objects.filter(
-                poste_comptable__utilisateur_id=request.data.get('utilisateur')
-            ).select_related('poste_comptable', 'piece')
+        #     # Récupérer tous les documents de l'utilisateur (même archivés)
+        #     document_qs = Document.objects.filter(
+        #         poste_comptable__utilisateur_id=request.data.get('utilisateur')
+        #     ).select_related('poste_comptable', 'piece')
 
-            # Construire un dictionnaire pour stocker la dernière version par document logique
-            latest_docs = {}
-            for doc in document_qs:
-                # Extraire info_supp après la virgule
-                parts = doc.nom_fichier.split(', ')
-                info_supp = parts[1] if len(parts) > 1 else ''
+        #     # Construire un dictionnaire pour stocker la dernière version par document logique
+        #     latest_docs = {}
+        #     for doc in document_qs:
+        #         # Extraire info_supp après la virgule
+        #         parts = doc.nom_fichier.split(', ')
+        #         info_supp = parts[1] if len(parts) > 1 else ''
 
-                key = (doc.piece.id, doc.exercice, doc.mois, info_supp)
+        #         key = (doc.piece.id, doc.exercice, doc.mois, info_supp)
 
-                # Garder le document avec la version maximale
-                if key not in latest_docs or doc.version > latest_docs[key].version:
-                    latest_docs[key] = doc
+        #         # Garder le document avec la version maximale
+        #         if key not in latest_docs or doc.version > latest_docs[key].version:
+        #             latest_docs[key] = doc
 
-            # Préparer le résultat JSON en excluant les documents dont la dernière version est archivée
-            result = []
-            for doc in latest_docs.values():
+        #     # Préparer le résultat JSON en excluant les documents dont la dernière version est archivée
+        #     result = []
+        #     for doc in latest_docs.values():
 
-                # ⚠️ Si la dernière version est archivée → on ignore complètement ce document
-                if hasattr(doc, 'archives'):
-                    continue
+        #         # ⚠️ Si la dernière version est archivée → on ignore complètement ce document
+        #         if hasattr(doc, 'archives'):
+        #             continue
 
-                result.append({
-                    'id': doc.id,
-                    'piece__nom_piece': doc.piece.nom_piece,
-                    'poste_comptable__nom_poste': doc.poste_comptable.nom_poste,
-                    'nom_fichier': doc.nom_fichier,
-                    'exercice': doc.exercice,
-                    'mois': doc.mois,
-                    'date_arrivee': doc.date_arrivee,
-                    'created_at': doc.created_at,
-                    'version': doc.version
-                })
+        #         result.append({
+        #             'id': doc.id,
+        #             'piece__nom_piece': doc.piece.nom_piece,
+        #             'poste_comptable__nom_poste': doc.poste_comptable.nom_poste,
+        #             'nom_fichier': doc.nom_fichier,
+        #             'exercice': doc.exercice,
+        #             'mois': doc.mois,
+        #             'date_arrivee': doc.date_arrivee,
+        #             'created_at': doc.created_at,
+        #             'version': doc.version
+        #         })
 
-            return JsonResponse(result, safe=False)
+        #     return JsonResponse(result, safe=False)
 
         
-        elif request.data.get('action') == 'listes_documents_chef_unite':
+        # elif request.data.get('action') == 'listes_documents_chef_unite':
 
-            # Récupérer tous les documents de la zone (archivés ou non)
-            document_qs = Document.objects.filter(
-                poste_comptable__utilisateur__zone__nom_zone=request.data.get('zone')
-            ).select_related('poste_comptable', 'piece')
+        #     # Récupérer tous les documents de la zone (archivés ou non)
+        #     document_qs = Document.objects.filter(
+        #         poste_comptable__utilisateur__zone__nom_zone=request.data.get('zone')
+        #     ).select_related('poste_comptable', 'piece')
 
-            # Construire un dictionnaire pour stocker la dernière version par document logique
-            latest_docs = {}
-            for doc in document_qs:
+        #     # Construire un dictionnaire pour stocker la dernière version par document logique
+        #     latest_docs = {}
+        #     for doc in document_qs:
 
-                # Extraire info_supp après la virgule
-                parts = doc.nom_fichier.split(', ')
-                info_supp = parts[1] if len(parts) > 1 else ''
+        #         # Extraire info_supp après la virgule
+        #         parts = doc.nom_fichier.split(', ')
+        #         info_supp = parts[1] if len(parts) > 1 else ''
 
-                key = (doc.piece.id, doc.exercice, doc.mois, info_supp)
+        #         key = (doc.piece.id, doc.exercice, doc.mois, info_supp)
 
-                # Garder uniquement la version la plus élevée
-                if key not in latest_docs or doc.version > latest_docs[key].version:
-                    latest_docs[key] = doc
+        #         # Garder uniquement la version la plus élevée
+        #         if key not in latest_docs or doc.version > latest_docs[key].version:
+        #             latest_docs[key] = doc
 
-            # Préparer le résultat JSON en excluant les documents archivés
-            result = []
-            for doc in latest_docs.values():
+        #     # Préparer le résultat JSON en excluant les documents archivés
+        #     result = []
+        #     for doc in latest_docs.values():
 
-                # ⚠️ Si la dernière version est archivée → on ignore
-                if hasattr(doc, 'archives'):
-                    continue
+        #         # ⚠️ Si la dernière version est archivée → on ignore
+        #         if hasattr(doc, 'archives'):
+        #             continue
 
-                result.append({
-                    'id': doc.id,
-                    'piece__nom_piece': doc.piece.nom_piece,
-                    'poste_comptable__nom_poste': doc.poste_comptable.nom_poste,
-                    'nom_fichier': doc.nom_fichier,
-                    'exercice': doc.exercice,
-                    'mois': doc.mois,
-                    'date_arrivee': doc.date_arrivee,
-                    'created_at': doc.created_at,
-                    'version': doc.version
-                })
+        #         result.append({
+        #             'id': doc.id,
+        #             'piece__nom_piece': doc.piece.nom_piece,
+        #             'poste_comptable__nom_poste': doc.poste_comptable.nom_poste,
+        #             'nom_fichier': doc.nom_fichier,
+        #             'exercice': doc.exercice,
+        #             'mois': doc.mois,
+        #             'date_arrivee': doc.date_arrivee,
+        #             'created_at': doc.created_at,
+        #             'version': doc.version
+        #         })
 
-            return JsonResponse(result, safe=False)
+        #     return JsonResponse(result, safe=False)
 
 
-        elif request.data.get('action') == 'listes_documents_directeur':
+        # elif request.data.get('action') == 'listes_documents_directeur':
 
-            # Récupérer tous les documents (avec relations)
-            document_qs = Document.objects.all().select_related('poste_comptable', 'piece')
+        #     # Récupérer tous les documents (avec relations)
+        #     document_qs = Document.objects.all().select_related('poste_comptable', 'piece')
 
-            # Dictionnaire pour stocker la dernière version
-            latest_docs = {}
+        #     # Dictionnaire pour stocker la dernière version
+        #     latest_docs = {}
 
-            for doc in document_qs:
-                # Extraire info_supp après la virgule
-                parts = doc.nom_fichier.split(', ')
-                info_supp = parts[1] if len(parts) > 1 else ''
+        #     for doc in document_qs:
+        #         # Extraire info_supp après la virgule
+        #         parts = doc.nom_fichier.split(', ')
+        #         info_supp = parts[1] if len(parts) > 1 else ''
 
-                # Clé logique d’un document
-                key = (doc.piece.id, doc.exercice, doc.mois, info_supp)
+        #         # Clé logique d’un document
+        #         key = (doc.piece.id, doc.exercice, doc.mois, info_supp)
 
-                # On garde le document avec la version la plus élevée
-                if key not in latest_docs or doc.version > latest_docs[key].version:
-                    latest_docs[key] = doc
+        #         # On garde le document avec la version la plus élevée
+        #         if key not in latest_docs or doc.version > latest_docs[key].version:
+        #             latest_docs[key] = doc
 
-            # Préparer le résultat JSON SANS les documents archivés
-            result = []
-            for doc in latest_docs.values():
+        #     # Préparer le résultat JSON SANS les documents archivés
+        #     result = []
+        #     for doc in latest_docs.values():
 
-                # ⚠️ Si la dernière version est archivée → on ignore
-                if hasattr(doc, 'archives'):
-                    continue
+        #         # ⚠️ Si la dernière version est archivée → on ignore
+        #         if hasattr(doc, 'archives'):
+        #             continue
 
-                result.append({
-                    'id': doc.id,
-                    'piece__nom_piece': doc.piece.nom_piece,
-                    'poste_comptable__nom_poste': doc.poste_comptable.nom_poste,
-                    'nom_fichier': doc.nom_fichier,
-                    'exercice': doc.exercice,
-                    'mois': doc.mois,
-                    'date_arrivee': doc.date_arrivee,
-                    'created_at': doc.created_at,
-                    'version': doc.version
-                })
+        #         result.append({
+        #             'id': doc.id,
+        #             'piece__nom_piece': doc.piece.nom_piece,
+        #             'poste_comptable__nom_poste': doc.poste_comptable.nom_poste,
+        #             'nom_fichier': doc.nom_fichier,
+        #             'exercice': doc.exercice,
+        #             'mois': doc.mois,
+        #             'date_arrivee': doc.date_arrivee,
+        #             'created_at': doc.created_at,
+        #             'version': doc.version
+        #         })
 
-            return JsonResponse(result, safe=False)
+        #     return JsonResponse(result, safe=False)
 
         
         elif request.data.get('action') == 'telecharger':
-            import io
-            import zipfile
-            
             
             ids = request.data.get('id_docs').split(",")
 
             if not ids:
                 return JsonResponse({"error": "Aucun fichier sélectionné"}, status=400)
 
-            # Buffer mémoire pour créer le ZIP
+            # Créer le fichier zip en mémoire
             zip_buffer = io.BytesIO()
 
             with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zipf:
@@ -887,11 +628,44 @@ class DocumentView(APIView):
 
             zip_buffer.seek(0)
 
-            # Envoyer le ZIP au navigateur → téléchargé dans "Downloads"
+            # Envoyer les documents vers React dans un fichier zip
             response = HttpResponse(zip_buffer, content_type='application/zip')
             response['Content-Disposition'] = 'attachment; filename="documents.zip"'
 
             return response
+
+
+
+        elif request.data.get('action') == 'envoyer_documents':
+            sujet = request.data.get('sujet')
+            message = request.data.get('message')
+            email_destinataire = request.data.get('email')
+            document = request.FILES.get('fichier')
+
+            try:
+                email = EmailMessage(
+                    subject=sujet,
+                    body=message,
+                    from_email=None,  # utilise EMAIL_HOST_USER si configuré
+                    to=[email_destinataire],
+                )
+
+                # 🔹 Ajout de la pièce jointe
+                if document:
+                    email.attach(
+                        document.name,
+                        document.read(),
+                        document.content_type
+                    )
+
+                email.send(fail_silently=False)
+
+                return JsonResponse({'succes': 'Document envoyé avec succès'})
+
+            except Exception as e:
+                return JsonResponse({'error': str(e)})
+
+                
 
         elif request.data.get('action') == 'recuperer_documents_a_comparer':
             # Préparer un dictionnaire de filtres dynamiques
@@ -945,8 +719,11 @@ class DocumentView(APIView):
             return JsonResponse(result, safe=False)
 
 
-   
- 
+class ExerciceView(APIView):
+
+    def get(self, request):
+        exercices = Exercice.objects.all().values('id', 'annee').order_by('-id')
+        return JsonResponse(list(exercices), safe=False) 
 
         
 

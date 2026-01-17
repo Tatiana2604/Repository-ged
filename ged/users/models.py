@@ -2,7 +2,6 @@ from django.db import models
 from django.contrib.auth.models import AbstractBaseUser,PermissionsMixin,BaseUserManager
 
 # Create your models here.
-
 class Zone(models.Model):
     nom_zone = models.CharField(max_length=50)
 
@@ -39,7 +38,6 @@ class AuthentificationMananger(BaseUserManager):
         user.save(using=self._db)
         return user
     
-
     def create_superuser(self,identifiant,password=None, **extra_fields):
         extra_fields.setdefault("is_staff",True)
         extra_fields.setdefault("is_superuser",True)
@@ -52,7 +50,6 @@ class Authentification(AbstractBaseUser, PermissionsMixin):
     utilisateur = models.OneToOneField(Utilisateur, on_delete=models.CASCADE, null=True, blank=True,related_name="authentification")
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
-
     objects = AuthentificationMananger()
 
     USERNAME_FIELD = "identifiant"

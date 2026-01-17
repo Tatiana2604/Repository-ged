@@ -2,8 +2,7 @@ asgiref==3.9.2
 Django==5.2.6
 django-cors-headers==4.9.0
 djangorestframework==3.16.1
-pip==25.2
+fpdf==1.7.2
 psycopg2==2.9.10
-setuptools==65.5.0
 sqlparse==0.5.3
 tzdata==2025.2

@@ -1,8 +1,10 @@
 from rest_framework import serializers
 from audit.models import AuditLog, Phase, Procedure
+from django.utils.timezone import localtime
+
 
 class AuditLogSerializer(serializers.ModelSerializer):
-
+    # Champ personnalisé pour afficher prénom + nom
     utilisateur = serializers.SerializerMethodField()
 
     class Meta:
@@ -12,21 +14,39 @@ class AuditLogSerializer(serializers.ModelSerializer):
             "utilisateur",
             "action",
             "modele",
-            "object_id",
+            "objet_id",
+            "document_filename",   # ✅ ajout pour afficher le nom du fichier lié
             "ancienne_valeur",
             "nouvelle_valeur",
             "date_action",
-            "adresse_ip"
+            "adresse_ip",
         ]
-           
-           
-    def get_utilisateur(self,obj):
+
+    def get_utilisateur(self, obj):
+        """
+        Retourne 'Nom Prénom' depuis la relation Authentification.utilisateur
+        """
+        try:
+            auth_user = obj.utilisateur
+            if not auth_user:
+                return "—"
+
+            profile = getattr(auth_user, "utilisateur", None)
+            if not profile:
+                return "—"
+
+            prenom = profile.prenom or ""
+            nom = profile.nom or ""
+            full_name = f"{nom} {prenom}".strip()
+
+            return full_name if full_name else "—"
+
+        except Exception:
+            return "—"
         
-        if obj.utilisateur and obj.utilisateur.utilisateur:
-            prenom = obj.utilisateur.utilisateur.prenom or ""
-            nom = obj.utilisateur.utilisateur.nom or ""
-            return f"{nom} {prenom}".strip()
-        return "-"
+    def get_date_action(self, obj):
+        # Conversion automatique en heure locale Madagascar
+        return localtime(obj.date_action).isoformat()
 
 
 class PhaseSerializer(serializers.ModelSerializer):
@@ -34,15 +54,6 @@ class PhaseSerializer(serializers.ModelSerializer):
         model = Phase
         fields = ['id', 'nom_phase']
 
-# class ProcedureSerializer(serializers.ModelSerializer):
-#     phase = PhaseSerializer(read_only=True)
-#     phase_id = serializers.PrimaryKeyRelatedField(
-#         queryset=Phase.objects.all(), source='phase', write_only=True
-#     )
-
-#     class Meta:
-#         model = Procedure
-#         fields = ['id', 'phase', 'procedure','phase_id', 'numero_orde', 'document_procedure', 'document_travail_valide']
 
 class ProcedureSerializer(serializers.ModelSerializer):
     nom_phase = serializers.CharField(source='phase.nom_phase', read_only=True)

@@ -84,6 +84,16 @@ SESSION_COOKIE_AGE = 60 * 60 * 24 *  14
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 
 
+# Configuration pour envoyer un email
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "smtp.gmail.com"
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = "volafidytatiana@gmail.com"
+EMAIL_HOST_PASSWORD = "stlcimtfjskjsqmm"
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTIFICATION_CLASSES": [
         "rest_framework.authentication.SessionAuthentication",
@@ -130,7 +140,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'ged',
         'USER': 'postgres',
-        'PASSWORD': 'bagl21',
+        'PASSWORD': 'admin',
         'HOST': 'localhost',  
         'PORT': '5432',       
     }
