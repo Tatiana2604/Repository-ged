@@ -51,6 +51,7 @@ class UserView(APIView):
 
             auth = Authentification.objects.filter(identifiant=request.user.identifiant,password=request.user.password).values(
                 'id',
+                'utilisateur_id',
                 'utilisateur__nom',
                 'utilisateur__prenom',
                 'utilisateur__fonction',
