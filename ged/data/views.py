@@ -50,7 +50,7 @@ def generate_diff_pdf_bytes(local_file_name, local_content, doc_name, doc_conten
     # Fichier en base
     doc_size_mb = len(doc_content_bytes) / (1024 * 1024)
     pdf.cell(0, 10, f"Fichier en base : {doc_name}", ln=True)
-    pdf.cell(0, 10, f"Format : {doc_name.split('.')[-1].upper() or 'Inconnu'}", ln=True)
+    pdf.cell(0, 10, f"Format : {doc_name.split('.')[-1].split(',')[0].upper() or 'Inconnu'}", ln=True)
     pdf.cell(0, 10, f"Taille : {doc_size_mb:.4f} Mo", ln=True)
     pdf.cell(0, 10, f"Hash SHA-256 : {hashlib.sha256(doc_content_bytes).hexdigest()}", ln=True)
     
@@ -181,19 +181,64 @@ class PiecesStatusView(APIView):
                     })
 
             # Période Journalière
+            # elif periode == "journalière" and mois and exercice:
+            #     mois_int = int(mois)
+            #     exercice_int = int(exercice)
+            #     nb_jours = monthrange(exercice_int, mois_int)[1]
+            #     # Filtrage des docs journaliers (dernière version déjà appliquée)
+            #     docs_sje = documents
+            #     for jour in range(1, nb_jours + 1):
+            #         date_jour = date(exercice_int, mois_int, jour)
+            #         date_str = date_jour.strftime("%Y-%m-%d")
+            #         arrived = False
+            #         documents_for_day = []
+            #         for doc in docs_sje:
+            #             parts = [p.strip() for p in doc.nom_fichier.split(",") if p.strip()]
+            #             if len(parts) > 1 and parts[1] == date_str:
+            #                 arrived = True
+            #                 try:
+            #                     date_sje = datetime.strptime(parts[1], "%Y-%m-%d").date()
+            #                 except ValueError:
+            #                     date_sje = date_jour
+
+            #                 retard = doc.date_arrivee and doc.date_arrivee > date_sje
+            #                 documents_for_day.append({
+            #                     "id": doc.id,
+            #                     "nom_fichier": doc.nom_fichier,
+            #                     "date_arrivee": doc.date_arrivee.strftime("%Y-%m-%d") if doc.date_arrivee else None,
+            #                     "retard": retard
+            #                 })
+            #         resultats.append({
+            #             "id": piece.id,
+            #             "nom_piece": f"{piece.nom_piece} ({date_str})",
+            #             "periode": piece.periode,
+            #             "date": date_str,
+            #             "arrived": [arrived],
+            #             "late": [any(doc['retard'] for doc in documents_for_day)],
+            #             "documents": [documents_for_day]
+            #         })
+
             elif periode == "journalière" and mois and exercice:
                 mois_int = int(mois)
                 exercice_int = int(exercice)
                 nb_jours = monthrange(exercice_int, mois_int)[1]
-                # Filtrage des docs journaliers (dernière version déjà appliquée)
+
                 docs_sje = documents
+
                 for jour in range(1, nb_jours + 1):
                     date_jour = date(exercice_int, mois_int, jour)
+
+                    # ⛔ Ignorer samedi (5) et dimanche (6)
+                    if date_jour.weekday() >= 5:
+                        continue
+
                     date_str = date_jour.strftime("%Y-%m-%d")
                     arrived = False
                     documents_for_day = []
+
                     for doc in docs_sje:
                         parts = [p.strip() for p in doc.nom_fichier.split(",") if p.strip()]
+
                         if len(parts) > 1 and parts[1] == date_str:
                             arrived = True
                             try:
@@ -202,20 +247,22 @@ class PiecesStatusView(APIView):
                                 date_sje = date_jour
 
                             retard = doc.date_arrivee and doc.date_arrivee > date_sje
+
                             documents_for_day.append({
                                 "id": doc.id,
                                 "nom_fichier": doc.nom_fichier,
                                 "date_arrivee": doc.date_arrivee.strftime("%Y-%m-%d") if doc.date_arrivee else None,
                                 "retard": retard
                             })
+
                     resultats.append({
                         "id": piece.id,
                         "nom_piece": f"{piece.nom_piece} ({date_str})",
                         "periode": piece.periode,
                         "date": date_str,
-                        "arrived": [arrived],
-                        "late": [any(doc['retard'] for doc in documents_for_day)],
-                        "documents": [documents_for_day]
+                        "arrived": arrived,
+                        "late": any(doc["retard"] for doc in documents_for_day),
+                        "documents": documents_for_day
                     })
 
             # Période Mensuelle
@@ -479,135 +526,6 @@ class DocumentView(APIView):
             document.save()
            
             return JsonResponse({'succes': 'Document enregistré avec succès'})
-
-        # elif request.data.get('action') == 'listes_documents_auditeur':
-
-        #     # Récupérer tous les documents de l'utilisateur (même archivés)
-        #     document_qs = Document.objects.filter(
-        #         poste_comptable__utilisateur_id=request.data.get('utilisateur')
-        #     ).select_related('poste_comptable', 'piece')
-
-        #     # Construire un dictionnaire pour stocker la dernière version par document logique
-        #     latest_docs = {}
-        #     for doc in document_qs:
-        #         # Extraire info_supp après la virgule
-        #         parts = doc.nom_fichier.split(', ')
-        #         info_supp = parts[1] if len(parts) > 1 else ''
-
-        #         key = (doc.piece.id, doc.exercice, doc.mois, info_supp)
-
-        #         # Garder le document avec la version maximale
-        #         if key not in latest_docs or doc.version > latest_docs[key].version:
-        #             latest_docs[key] = doc
-
-        #     # Préparer le résultat JSON en excluant les documents dont la dernière version est archivée
-        #     result = []
-        #     for doc in latest_docs.values():
-
-        #         # ⚠️ Si la dernière version est archivée → on ignore complètement ce document
-        #         if hasattr(doc, 'archives'):
-        #             continue
-
-        #         result.append({
-        #             'id': doc.id,
-        #             'piece__nom_piece': doc.piece.nom_piece,
-        #             'poste_comptable__nom_poste': doc.poste_comptable.nom_poste,
-        #             'nom_fichier': doc.nom_fichier,
-        #             'exercice': doc.exercice,
-        #             'mois': doc.mois,
-        #             'date_arrivee': doc.date_arrivee,
-        #             'created_at': doc.created_at,
-        #             'version': doc.version
-        #         })
-
-        #     return JsonResponse(result, safe=False)
-
-        
-        # elif request.data.get('action') == 'listes_documents_chef_unite':
-
-        #     # Récupérer tous les documents de la zone (archivés ou non)
-        #     document_qs = Document.objects.filter(
-        #         poste_comptable__utilisateur__zone__nom_zone=request.data.get('zone')
-        #     ).select_related('poste_comptable', 'piece')
-
-        #     # Construire un dictionnaire pour stocker la dernière version par document logique
-        #     latest_docs = {}
-        #     for doc in document_qs:
-
-        #         # Extraire info_supp après la virgule
-        #         parts = doc.nom_fichier.split(', ')
-        #         info_supp = parts[1] if len(parts) > 1 else ''
-
-        #         key = (doc.piece.id, doc.exercice, doc.mois, info_supp)
-
-        #         # Garder uniquement la version la plus élevée
-        #         if key not in latest_docs or doc.version > latest_docs[key].version:
-        #             latest_docs[key] = doc
-
-        #     # Préparer le résultat JSON en excluant les documents archivés
-        #     result = []
-        #     for doc in latest_docs.values():
-
-        #         # ⚠️ Si la dernière version est archivée → on ignore
-        #         if hasattr(doc, 'archives'):
-        #             continue
-
-        #         result.append({
-        #             'id': doc.id,
-        #             'piece__nom_piece': doc.piece.nom_piece,
-        #             'poste_comptable__nom_poste': doc.poste_comptable.nom_poste,
-        #             'nom_fichier': doc.nom_fichier,
-        #             'exercice': doc.exercice,
-        #             'mois': doc.mois,
-        #             'date_arrivee': doc.date_arrivee,
-        #             'created_at': doc.created_at,
-        #             'version': doc.version
-        #         })
-
-        #     return JsonResponse(result, safe=False)
-
-
-        # elif request.data.get('action') == 'listes_documents_directeur':
-
-        #     # Récupérer tous les documents (avec relations)
-        #     document_qs = Document.objects.all().select_related('poste_comptable', 'piece')
-
-        #     # Dictionnaire pour stocker la dernière version
-        #     latest_docs = {}
-
-        #     for doc in document_qs:
-        #         # Extraire info_supp après la virgule
-        #         parts = doc.nom_fichier.split(', ')
-        #         info_supp = parts[1] if len(parts) > 1 else ''
-
-        #         # Clé logique d’un document
-        #         key = (doc.piece.id, doc.exercice, doc.mois, info_supp)
-
-        #         # On garde le document avec la version la plus élevée
-        #         if key not in latest_docs or doc.version > latest_docs[key].version:
-        #             latest_docs[key] = doc
-
-        #     # Préparer le résultat JSON SANS les documents archivés
-        #     result = []
-        #     for doc in latest_docs.values():
-
-        #         # ⚠️ Si la dernière version est archivée → on ignore
-        #         if hasattr(doc, 'archives'):
-        #             continue
-
-        #         result.append({
-        #             'id': doc.id,
-        #             'piece__nom_piece': doc.piece.nom_piece,
-        #             'poste_comptable__nom_poste': doc.poste_comptable.nom_poste,
-        #             'nom_fichier': doc.nom_fichier,
-        #             'exercice': doc.exercice,
-        #             'mois': doc.mois,
-        #             'date_arrivee': doc.date_arrivee,
-        #             'created_at': doc.created_at,
-        #             'version': doc.version
-        #         })
-
-        #     return JsonResponse(result, safe=False)
 
         
         elif request.data.get('action') == 'telecharger':

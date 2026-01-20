@@ -20,4 +20,7 @@ urlpatterns = [
     # Procedures
     path('procedures', views.ProcedureListCreateAPIView.as_view(), name='procedure-list-create'),
     path('procedures/<int:pk>', views.ProcedureRetrieveUpdateDeleteAPIView.as_view(), name='procedure-rud'),
+
+    path('procedures/<int:pk>/download_travail_valide', views.DownloadDocumentTravailValide.as_view(), name='telecharger document travail valide'),
+    path('procedures/<int:pk>/download_procedure', views.DownloadDocumentProcedure.as_view(), name='telecharger document procedure')
 ]

@@ -1,5 +1,4 @@
-from django.shortcuts import render
-from rest_framework import viewsets
+from django.shortcuts import get_object_or_404
 # from rest_framework.permissions import isAuthenticated
 from audit.models import AuditLog
 from audit.serializers import AuditLogSerializer
@@ -9,6 +8,7 @@ from rest_framework import status
 from rest_framework.parsers import MultiPartParser, FormParser
 from .models import Phase, Procedure
 from .serializers import PhaseSerializer, ProcedureSerializer
+from django.http import HttpResponse, Http404
 
 
 # Create your views here.
@@ -133,4 +133,42 @@ class ProcedureRetrieveUpdateDeleteAPIView(APIView):
         # return Response(status=status.HTTP_204_NO_CONTENT)
         return Response({"succes": "Suppression d'une procedure effectuée avec succès"})
     
+
+class DownloadDocumentTravailValide(APIView):
+
+    def get(self, request, pk):
+        procedure = get_object_or_404(Procedure, id=pk)
+
+        if not procedure.document_travail_valide:
+            raise Http404("Aucun document disponible")
+
+        response = HttpResponse(
+            procedure.document_travail_valide,
+            content_type="application/octet-stream"
+        )
+
+        response["Content-Disposition"] = (
+            f'attachment; filename="document_travail_procedure_{pk}.pdf"'
+        )
+
+        return response
+    
+class DownloadDocumentProcedure(APIView):
+
+    def get(self, request, pk):
+        procedure = get_object_or_404(Procedure, id=pk)
+
+        if not procedure.document_procedure:
+            raise Http404("Aucun document disponible")
+
+        response = HttpResponse(
+            procedure.document_procedure,
+            content_type="application/octet-stream"
+        )
+
+        response["Content-Disposition"] = (
+            f'attachment; filename="document_travail_procedure_{pk}.pdf"'
+        )
+
+        return response
 
